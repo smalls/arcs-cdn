@@ -327,6 +327,71 @@ function _waitForAndMaybeAcceptSuggestion(textSubstring, accept) {
   console.log(`${accept ? 'Accepted' : 'Found'} suggestion: ${textSubstring}`);
 }
 
+/**
+ * Verify that the suggestions list remains constant through a reload of the
+ * page.
+ */
+function verifySuggestionsThroughReload() {
+  waitForStillness();
+  openSuggestionDrawer();
+  let footerPath = getFooterPath();
+
+  const getAllSuggestions = () => {
+    // ugh - side effects.
+    var enclosingAllSuggestionsText;
+    browser.waitUntil(
+      () => {
+        const suggestions = getAtLeastOneSuggestion();
+        if (!suggestions || !suggestions.value) {
+          return false;
+        }
+
+        const suggestionsText = suggestions.value.map(
+          suggestion => browser.elementIdText(suggestion.ELEMENT).value
+        );
+        if (suggestionsText && suggestionsText.length > 0) {
+          enclosingAllSuggestionsText = suggestionsText;
+          return true;
+        } else {
+          return false;
+        }
+      },
+      5000,
+      `couldn't find any suggestions`
+    );
+    return enclosingAllSuggestionsText;
+  };
+
+  const allSuggestionsAtStart = getAllSuggestions();
+  const urlAtStart = browser.getUrl();
+
+  browser.refresh();
+  loadSeleniumUtils();
+
+  const allSuggestionsAtEnd = getAllSuggestions('end');
+  const urlAtEnd = browser.getUrl();
+
+  // if the suggestions just differ in order that's close enough
+  allSuggestionsAtStart.sort();
+  allSuggestionsAtEnd.sort();
+
+  // this isn't an interesting check but useful to make sure our state is sane
+  // during debugging.
+  assert.equal(urlAtStart, urlAtEnd);
+
+  // start debugging
+  console.log(`at start ${allSuggestionsAtStart.length}`);
+  allSuggestionsAtStart.forEach(suggest => console.log(`\t${suggest}`));
+  console.log(`\tat start ${urlAtStart}`);
+  console.log(`at end ${allSuggestionsAtEnd.length}`);
+  allSuggestionsAtEnd.forEach(suggest => console.log(`\t${suggest}`));
+  console.log(`\tat end ${urlAtEnd}`);
+  // end debugging
+
+  assert.equal(allSuggestionsAtEnd.length, allSuggestionsAtStart.length);
+  assert.deepEqual(allSuggestionsAtEnd, allSuggestionsAtStart);
+}
+
 function particleSelectors(slotName, selectors) {
   return ['arc-host', `div[slotid="${slotName}"]`].concat(selectors);
 }
@@ -398,6 +463,9 @@ describe('test Arcs demo flows', function() {
 
     acceptSuggestion('Table for 2');
     acceptSuggestion('from your calendar');
+
+    console.log(`\n\n verifySuggestionsThroughReload()`);
+    verifySuggestionsThroughReload();
 
     // debug hint: to drop into debug mode with a REPL; also a handy way to
     // see the state at the end of the test:
