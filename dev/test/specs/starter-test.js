@@ -332,13 +332,13 @@ function _waitForAndMaybeAcceptSuggestion(textSubstring, accept) {
  * page.
  */
 function verifySuggestionsThroughReload() {
-  waitForStillness();
-  openSuggestionDrawer();
-  let footerPath = getFooterPath();
 
   const getAllSuggestions = () => {
     // ugh - side effects.
     var enclosingAllSuggestionsText;
+
+    allSuggestions();
+
     browser.waitUntil(
       () => {
         const suggestions = getAtLeastOneSuggestion();
@@ -361,6 +361,9 @@ function verifySuggestionsThroughReload() {
     );
     return enclosingAllSuggestionsText;
   };
+
+  // need an extra one to set up the state
+  allSuggestions();
 
   const allSuggestionsAtStart = getAllSuggestions();
   const urlAtStart = browser.getUrl();
@@ -388,7 +391,16 @@ function verifySuggestionsThroughReload() {
   console.log(`\tat end ${urlAtEnd}`);
   // end debugging
 
+
   assert.equal(allSuggestionsAtEnd.length, allSuggestionsAtStart.length);
+  for (i=0; i<allSuggestionsAtEnd.length; i++) {
+    console.log(`index ${i}:
+      ${allSuggestionsAtStart[i]}
+      ${allSuggestionsAtEnd[i]}`);
+    assert.equal(allSuggestionsAtEnd[i], allSuggestionsAtStart[i]);
+  }
+
+  // this could replace the preceding loop
   assert.deepEqual(allSuggestionsAtEnd, allSuggestionsAtStart);
 }
 
@@ -448,6 +460,8 @@ describe('test Arcs demo flows', function() {
 
     acceptSuggestion('Find restaurants');
 
+    verifySuggestionsThroughReload();
+
     // Our location is relative to where you are now, so this list is dynamic.
     // Rather than trying to mock this out let's just grab the first
     // restaurant.
@@ -463,9 +477,6 @@ describe('test Arcs demo flows', function() {
 
     acceptSuggestion('Table for 2');
     acceptSuggestion('from your calendar');
-
-    console.log(`\n\n verifySuggestionsThroughReload()`);
-    verifySuggestionsThroughReload();
 
     // debug hint: to drop into debug mode with a REPL; also a handy way to
     // see the state at the end of the test:
